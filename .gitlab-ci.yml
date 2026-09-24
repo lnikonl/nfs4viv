@@ -1,0 +1,44 @@
+stages:
+  - test
+  - build
+
+test:
+  stage: test
+  image: $REGISTRY/golang:1.24
+  tags: [docker]
+  script:
+    - go test -count=1 ./...
+
+test:original:
+  stage: test
+  image: $REGISTRY/golang:1.24
+  tags: [docker]
+  script:
+    - |
+      if git fetch origin gitlab/original-data; then
+        if command -v git-lfs >/dev/null 2>&1; then
+          git lfs fetch origin gitlab/original-data || true
+        fi
+        git --work-tree=. checkout FETCH_HEAD -- original/
+      else
+        echo "gitlab/original-data is not available; the original samples will be skipped"
+      fi
+    - |
+      if grep -rIlq "version https://git-lfs" original/ 2>/dev/null; then
+        echo "WARNING: original samples are git-lfs pointers; install git-lfs (and fetch the LFS objects) to run the original tests"
+      fi
+    - go test -count=1 ./...
+
+compile:
+  stage: build
+  image: $REGISTRY/golang:1.24
+  tags: [docker]
+  script:
+    - VERSION="${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}"
+    - VERSION="$VERSION" ./build.sh
+    - find bin dist
+  artifacts:
+    paths:
+      - bin/
+      - dist/
+    expire_in: 20 mins
