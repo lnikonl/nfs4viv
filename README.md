@@ -8,6 +8,10 @@ match the ones documented by [VivLib](https://github.com/TheXDS/VivLib) and
 used by [Vivianne](https://github.com/TheXDS/Vivianne).
 
 
+## Main repository
+
+https://github.com/lnikonl/nfs4viv
+
 ## Build
 
 Requires Go 1.24 or newer.
