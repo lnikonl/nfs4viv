@@ -19,23 +19,24 @@ var Languages = []string{"eng", "bri", "fre", "ger", "ita", "spa", "swe"}
 
 // Info describes a single car read from its car.viv archive.
 type Info struct {
-	Folder     string   `json:"folder"`
-	Viv        string   `json:"viv"`
-	Entry      string   `json:"entry"`
-	CarID      string   `json:"car_id"`
-	Serial     uint16   `json:"serial"`
-	Name       string   `json:"name"`
-	Class      string   `json:"class"`
-	ClassRaw   uint8    `json:"class_raw"`
-	Police     string   `json:"police"`
-	PoliceFlag uint8    `json:"police_flag"`
-	Bonus      bool     `json:"bonus"`
-	Upgradable bool     `json:"upgradable"`
-	DLC        bool     `json:"dlc"`
-	Roof       string   `json:"roof"`
-	Price      int32    `json:"price"`
-	PriceText  string   `json:"price_text"`
-	Duplicates []string `json:"duplicates,omitempty"`
+	Folder       string   `json:"folder"`
+	Viv          string   `json:"viv"`
+	Entry        string   `json:"entry"`
+	CarID        string   `json:"car_id"`
+	Serial       uint16   `json:"serial"`
+	Name         string   `json:"name"`
+	Manufacturer string   `json:"manufacturer"`
+	Class        string   `json:"class"`
+	ClassRaw     uint8    `json:"class_raw"`
+	Police       string   `json:"police"`
+	PoliceFlag   uint8    `json:"police_flag"`
+	Bonus        bool     `json:"bonus"`
+	Upgradable   bool     `json:"upgradable"`
+	DLC          bool     `json:"dlc"`
+	Roof         string   `json:"roof"`
+	Price        int32    `json:"price"`
+	PriceText    string   `json:"price_text"`
+	Duplicates   []string `json:"duplicates,omitempty"`
 }
 
 // Scan reads car.viv from root and from every immediate subfolder of root.
@@ -71,22 +72,23 @@ func Scan(root, lang string) ([]Info, error) {
 			return nil, fmt.Errorf("%s: entry %s: %w", path, entry, err)
 		}
 		result = append(result, Info{
-			Folder:     filepath.Base(filepath.Dir(path)),
-			Viv:        path,
-			Entry:      entry,
-			CarID:      parsed.CarID(),
-			Serial:     parsed.Serial(),
-			Name:       parsed.CarName(),
-			Class:      parsed.ClassName(),
-			ClassRaw:   parsed.CarClass(),
-			Police:     parsed.PoliceName(),
-			PoliceFlag: parsed.PoliceFlag(),
-			Bonus:      parsed.Bonus(),
-			Upgradable: parsed.Upgradable(),
-			DLC:        parsed.DLC(),
-			Roof:       parsed.RoofName(),
-			Price:      parsed.BasePrice(),
-			PriceText:  parsed.PriceText(),
+			Folder:       filepath.Base(filepath.Dir(path)),
+			Viv:          path,
+			Entry:        entry,
+			CarID:        parsed.CarID(),
+			Serial:       parsed.Serial(),
+			Name:         parsed.CarName(),
+			Manufacturer: parsed.Manufacturer(),
+			Class:        parsed.ClassName(),
+			ClassRaw:     parsed.CarClass(),
+			Police:       parsed.PoliceName(),
+			PoliceFlag:   parsed.PoliceFlag(),
+			Bonus:        parsed.Bonus(),
+			Upgradable:   parsed.Upgradable(),
+			DLC:          parsed.DLC(),
+			Roof:         parsed.RoofName(),
+			Price:        parsed.BasePrice(),
+			PriceText:    parsed.PriceText(),
 		})
 	}
 	return result, nil
@@ -210,18 +212,19 @@ func entryList(archive *viv.File) string {
 }
 
 // sortColumns lists every column accepted by SortBy, in documentation order.
-var sortColumns = []string{"folder", "car_id", "serial", "class", "police", "bonus", "upgradable", "price", "name"}
+var sortColumns = []string{"folder", "car_id", "serial", "class", "police", "bonus", "upgradable", "price", "manufacturer", "name"}
 
 var sortComparators = map[string]func(left, right Info) int{
-	"folder":     compareFolder,
-	"car_id":     compareCarID,
-	"serial":     func(left, right Info) int { return cmp.Compare(left.Serial, right.Serial) },
-	"class":      compareClass,
-	"police":     func(left, right Info) int { return cmp.Compare(left.PoliceFlag, right.PoliceFlag) },
-	"bonus":      func(left, right Info) int { return cmp.Compare(boolRank(left.Bonus), boolRank(right.Bonus)) },
-	"upgradable": func(left, right Info) int { return cmp.Compare(boolRank(left.Upgradable), boolRank(right.Upgradable)) },
-	"price":      func(left, right Info) int { return cmp.Compare(left.Price, right.Price) },
-	"name":       compareName,
+	"folder":       compareFolder,
+	"car_id":       compareCarID,
+	"serial":       func(left, right Info) int { return cmp.Compare(left.Serial, right.Serial) },
+	"class":        compareClass,
+	"police":       func(left, right Info) int { return cmp.Compare(left.PoliceFlag, right.PoliceFlag) },
+	"bonus":        func(left, right Info) int { return cmp.Compare(boolRank(left.Bonus), boolRank(right.Bonus)) },
+	"upgradable":   func(left, right Info) int { return cmp.Compare(boolRank(left.Upgradable), boolRank(right.Upgradable)) },
+	"price":        func(left, right Info) int { return cmp.Compare(left.Price, right.Price) },
+	"manufacturer": compareManufacturer,
+	"name":         compareName,
 }
 
 // SortColumns lists the columns accepted by the -sort flag.
@@ -317,6 +320,10 @@ func compareCarID(left, right Info) int {
 
 func compareName(left, right Info) int {
 	return strings.Compare(strings.ToLower(left.Name), strings.ToLower(right.Name))
+}
+
+func compareManufacturer(left, right Info) int {
+	return strings.Compare(strings.ToLower(left.Manufacturer), strings.ToLower(right.Manufacturer))
 }
 
 // compareClass orders cars from B to AAA, keeping unknown classes last.

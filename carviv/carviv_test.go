@@ -15,11 +15,12 @@ func writeCarViv(t *testing.T, directory, carID string, serial uint16, name stri
 	t.Helper()
 	file := fedata.New()
 	for field, value := range map[string]string{
-		"car_id":   carID,
-		"serial":   strconv.Itoa(int(serial)),
-		"car_name": name,
-		"class":    fedata.ClassName(class),
-		"price":    "350000",
+		"car_id":       carID,
+		"serial":       strconv.Itoa(int(serial)),
+		"car_name":     name,
+		"manufacturer": "Test Motors",
+		"class":        fedata.ClassName(class),
+		"price":        "350000",
 	} {
 		if err := file.Set(field, value); err != nil {
 			t.Fatalf("Set(%s): %v", field, err)
@@ -59,6 +60,9 @@ func TestScan(t *testing.T) {
 	first := list[0]
 	if first.Folder != "car00" || first.CarID != "F50" || first.Serial != 1 || first.Name != "Ferrari F50" || first.Class != "AAA" || first.Price != 350000 {
 		t.Errorf("unexpected first car: %+v", first)
+	}
+	if first.Manufacturer != "Test Motors" {
+		t.Errorf("manufacturer = %q", first.Manufacturer)
 	}
 	if first.Entry != "fedata.eng" {
 		t.Errorf("entry = %q", first.Entry)
@@ -187,6 +191,23 @@ func TestSortBySecondaryKeys(t *testing.T) {
 		t.Fatalf("SortBy: %v", err)
 	}
 	want := []string{"car02", "car01", "car00"}
+	for index, folder := range want {
+		if list[index].Folder != folder {
+			t.Errorf("car %d folder = %q, want %q", index, list[index].Folder, folder)
+		}
+	}
+}
+
+func TestSortByManufacturer(t *testing.T) {
+	list := []Info{
+		{Folder: "c", Manufacturer: "Zeta Works", Name: "Zeta"},
+		{Folder: "b", Manufacturer: "Alpha Motors", Name: "Beta"},
+		{Folder: "a", Manufacturer: "Alpha Motors", Name: "Alpha"},
+	}
+	if err := SortBy(list, "manufacturer"); err != nil {
+		t.Fatalf("SortBy: %v", err)
+	}
+	want := []string{"a", "b", "c"}
 	for index, folder := range want {
 		if list[index].Folder != folder {
 			t.Errorf("car %d folder = %q, want %q", index, list[index].Folder, folder)

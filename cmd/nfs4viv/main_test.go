@@ -64,14 +64,15 @@ func createCarViv(t *testing.T, directory, carID string, serial uint16, name str
 	t.Helper()
 	file := fedata.New()
 	for field, value := range map[string]string{
-		"car_id":     carID,
-		"serial":     strconv.Itoa(int(serial)),
-		"car_name":   name,
-		"class":      fedata.ClassName(class),
-		"police":     "no",
-		"bonus":      "no",
-		"upgradable": "yes",
-		"price":      "350000",
+		"car_id":       carID,
+		"serial":       strconv.Itoa(int(serial)),
+		"car_name":     name,
+		"manufacturer": "Test Motors",
+		"class":        fedata.ClassName(class),
+		"police":       "no",
+		"bonus":        "no",
+		"upgradable":   "yes",
+		"price":        "350000",
 	} {
 		if err := file.Set(field, value); err != nil {
 			t.Fatalf("Set(%s): %v", field, err)
@@ -116,6 +117,9 @@ func TestSerialsCommand(t *testing.T) {
 	if list[0].CarID != "F50" || list[0].Serial != 1 || list[0].Name != "Ferrari F50" || list[0].Class != "AAA" {
 		t.Errorf("first car = %+v", list[0])
 	}
+	if list[0].Manufacturer != "Test Motors" {
+		t.Errorf("manufacturer = %q", list[0].Manufacturer)
+	}
 	if list[1].Class != "B" {
 		t.Errorf("second car class = %q", list[1].Class)
 	}
@@ -149,7 +153,7 @@ func TestSerialsCommandText(t *testing.T) {
 	if err != nil {
 		t.Fatalf("run: %v", err)
 	}
-	for _, want := range []string{"FOLDER", "CAR_ID", "SERIAL", "CLASS", "POLICE", "BONUS", "UPGRADABLE", "PRICE", "car00", "F50", "Ferrari F50"} {
+	for _, want := range []string{"FOLDER", "CAR_ID", "SERIAL", "CLASS", "POLICE", "BONUS", "UPGRADABLE", "PRICE", "MAKER", "car00", "F50", "Test Motors", "Ferrari F50"} {
 		if !strings.Contains(output, want) {
 			t.Errorf("output does not contain %q:\n%s", want, output)
 		}
@@ -261,6 +265,103 @@ func TestSerialsDefaultDirectory(t *testing.T) {
 	}
 	if len(list) != 1 || list[0].Folder != "car00" {
 		t.Fatalf("list = %+v", list)
+	}
+}
+
+func TestSerialsDefaultSavedataDirectory(t *testing.T) {
+	root := t.TempDir()
+	createCarViv(t, filepath.Join(root, "SAVEDATA", "CARS", "car00"), "F50", 1, "Ferrari F50", 0)
+
+	previous, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(root); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(previous)
+
+	output, err := captureStdout(t, func() error {
+		return run([]string{"serials", "-json"})
+	})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	var list []carviv.Info
+	if err := json.Unmarshal([]byte(output), &list); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if len(list) != 1 || list[0].Folder != "car00" {
+		t.Fatalf("list = %+v", list)
+	}
+}
+
+func TestSerialsDefaultDirectoryFallback(t *testing.T) {
+	root := t.TempDir()
+	// DATA/CARS exists but holds no car.viv, so the scan falls through to
+	// SAVEDATA/CARS.
+	if err := os.MkdirAll(filepath.Join(root, "DATA", "CARS"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	createCarViv(t, filepath.Join(root, "SAVEDATA", "CARS", "car01"), "M5", 2, "BMW M5", 0)
+
+	previous, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(root); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(previous)
+
+	output, err := captureStdout(t, func() error {
+		return run([]string{"serials", "-json"})
+	})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	var list []carviv.Info
+	if err := json.Unmarshal([]byte(output), &list); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if len(list) != 1 || list[0].Folder != "car01" {
+		t.Fatalf("list = %+v", list)
+	}
+}
+
+func TestSerialsDefaultBothDirectories(t *testing.T) {
+	root := t.TempDir()
+	createCarViv(t, filepath.Join(root, "DATA", "CARS", "car00"), "F50", 1, "Ferrari F50", 0)
+	createCarViv(t, filepath.Join(root, "SAVEDATA", "CARS", "car05"), "M5", 5, "BMW M5", 0)
+
+	previous, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(root); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(previous)
+
+	output, err := captureStdout(t, func() error {
+		return run([]string{"serials", "-json"})
+	})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	var list []carviv.Info
+	if err := json.Unmarshal([]byte(output), &list); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if len(list) != 2 {
+		t.Fatalf("cars = %d, want 2: %+v", len(list), list)
+	}
+	folders := map[string]bool{}
+	for _, car := range list {
+		folders[car.Folder] = true
+	}
+	if !folders["car00"] || !folders["car05"] {
+		t.Errorf("folders = %v", folders)
 	}
 }
 
@@ -882,6 +983,9 @@ func TestSerialsGeneratedCars(t *testing.T) {
 	}
 	if positions["FLCN"].PoliceFlag != 0xA0 || positions["FLCN"].Price != 225000 {
 		t.Errorf("FLCN = %+v", positions["FLCN"])
+	}
+	if positions["FLCN"].Manufacturer != "Falcon" {
+		t.Errorf("FLCN manufacturer = %q", positions["FLCN"].Manufacturer)
 	}
 	if positions["NOVA"].PoliceFlag != 0x10 || positions["NOVA"].Name != "Nova Pursuit" {
 		t.Errorf("NOVA = %+v", positions["NOVA"])
