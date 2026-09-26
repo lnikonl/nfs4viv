@@ -253,6 +253,11 @@ func (f *File) CarName() string {
 	return f.texts[2]
 }
 
+// Manufacturer returns the localized manufacturer (offset table index 0).
+func (f *File) Manufacturer() string {
+	return f.texts[0]
+}
+
 // PriceText returns the localized price string (offset table index 3).
 func (f *File) PriceText() string {
 	return f.texts[3]

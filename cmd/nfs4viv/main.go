@@ -53,8 +53,9 @@ func run(args []string) error {
 	}
 }
 
-// defaultCarsDir is scanned by the serials command when no path is given.
-const defaultCarsDir = "./DATA/CARS"
+// defaultCarsDirs are scanned by the serials command in order when no path is
+// given: DATA/CARS first, then SAVEDATA/CARS.
+var defaultCarsDirs = []string{"./DATA/CARS", "./SAVEDATA/CARS"}
 
 func serials(args []string) error {
 	flags := flag.NewFlagSet("serials", flag.ContinueOnError)
@@ -79,11 +80,12 @@ func serials(args []string) error {
 	if err != nil {
 		return err
 	}
-	directory := defaultCarsDir
+	var list []carviv.Info
 	if len(positional) == 1 {
-		directory = positional[0]
+		list, err = carviv.Scan(positional[0], *lang)
+	} else {
+		list, err = scanDefaultCars(*lang)
 	}
-	list, err := carviv.Scan(directory, *lang)
 	if err != nil {
 		return err
 	}
@@ -100,6 +102,36 @@ func serials(args []string) error {
 	}
 	printCarTable(list, performCheck, useColor)
 	return nil
+}
+
+// scanDefaultCars merges the cars from every default game folder that exists,
+// so a game layout that keeps extra cars in SAVEDATA/CARS still lists them.
+func scanDefaultCars(lang string) ([]carviv.Info, error) {
+	var (
+		list     []carviv.Info
+		firstErr error
+	)
+	for _, directory := range defaultCarsDirs {
+		if info, err := os.Stat(directory); err != nil || !info.IsDir() {
+			continue
+		}
+		cars, err := carviv.Scan(directory, lang)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "warning: %v\n", err)
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
+		}
+		list = append(list, cars...)
+	}
+	if len(list) > 0 {
+		return list, nil
+	}
+	if firstErr != nil {
+		return nil, firstErr
+	}
+	return nil, fmt.Errorf("no car folder found; looked for %s", strings.Join(defaultCarsDirs, ", "))
 }
 
 // ANSI sequences used to mark the exact field that collides with another car.
@@ -227,7 +259,7 @@ func warnSerials(list []carviv.Info, check bool) {
 }
 
 func printCarTable(list []carviv.Info, check, color bool) {
-	headers := []string{"FOLDER", "CAR_ID", "SERIAL", "CLASS", "POLICE", "BONUS", "UPGRADABLE", "PRICE", "NAME"}
+	headers := []string{"FOLDER", "CAR_ID", "SERIAL", "CLASS", "POLICE", "BONUS", "UPGRADABLE", "PRICE", "MAKER", "NAME"}
 	if check {
 		headers = append(headers, "DUPLICATES")
 	}
@@ -255,6 +287,7 @@ func printCarTable(list []carviv.Info, check, color bool) {
 			{Text: yesNo(car.Bonus)},
 			{Text: yesNo(car.Upgradable)},
 			{Text: strconv.FormatInt(int64(car.Price), 10)},
+			{Text: cleanCell(car.Manufacturer)},
 			name,
 		}
 		if check {
@@ -1269,9 +1302,10 @@ Usage:
   nfs4viv serials [-json] [-lang EXT] [-sort COLUMN] [-check] [-check-off] [-color MODE] [DIR]
       List every car found in DIR. Each immediate subfolder (car00, car01,
       ...) is expected to contain a car.viv archive. The list shows the
-      folder, four character car ID, serial number, car name, class, police
-      and bonus flags, upgradability and the base price.
-      DIR defaults to ./DATA/CARS relative to the working directory.
+      folder, four character car ID, serial number, maker, car name, class,
+      police and bonus flags, upgradability and the base price.
+      Without DIR the cars are collected from ./DATA/CARS and
+      ./SAVEDATA/CARS relative to the working directory.
       -sort selects the first sort column (default serial); class is always
       used as the second key and name as the third unless selected.
       Duplicate checking is enabled by default: a DUPLICATES column reports

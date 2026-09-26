@@ -43,8 +43,9 @@ and runs the tests a second time with the samples in place.
 
 ```sh
 # List every car found in a game cars folder. Each subfolder (car00, car01,
-# ...) is expected to hold a car.viv archive. Without DIR the command scans
-# ./DATA/CARS relative to the working directory.
+# ...) is expected to hold a car.viv archive. Without DIR the cars are
+# collected from ./DATA/CARS and ./SAVEDATA/CARS relative to the working
+# directory.
 ./nfs4viv serials "C:\Games\NFS4\DATA\CARS"
 ./nfs4viv serials
 ./nfs4viv serials -sort class
@@ -103,31 +104,31 @@ localization per car and rejects `-lang all`.
 
 For each car the command reads the first available fedata entry (`fedata.eng`,
 `fedata.bri`, ... unless `-lang` selects one) and prints the folder, the four
-character car ID, the serial number, the car name, the performance class
-(`AAA`, `AA`, `A`, `B`), the police and bonus flags, career upgradability and
-the base price:
+character car ID, the serial number, the maker, the car name, the performance
+class (`AAA`, `AA`, `A`, `B`), the police and bonus flags, career
+upgradability and the base price:
 
 ```
-FOLDER  CAR_ID  SERIAL  CLASS  POLICE  BONUS  UPGRADABLE   PRICE  NAME
-car00   F50          1  AAA    no      no     yes         350000  Ferrari F50
-car01   M5           6  A      no      no     yes          75000  BMW M5
-car02   COP1        16  B      yes     no     no               0  Police Cruiser
+FOLDER  CAR_ID  SERIAL  CLASS  POLICE  BONUS  UPGRADABLE   PRICE  MAKER      NAME
+car00   F50          1  AAA    no      no     yes         350000  Ferrari    Ferrari F50
+car01   M5           6  A      no      no     yes          75000  BMW        BMW M5
+car02   COP1        16  B      yes     no     no               0  Chevrolet  Police Cruiser
 ```
 
 With `-json` the same data is written as an array of objects and also includes
-the `price_text` string, the raw flag values and the roof type. Duplicate
-checking is enabled by default and appends a `DUPLICATES` column; `-check-off`
-removes it (see below).
+the `manufacturer`, the `price_text` string, the raw flag values and the roof
+type. Duplicate checking is enabled by default and appends a `DUPLICATES`
+column; `-check-off` removes it (see below).
 
 ### Sorting
 
 `-sort COLUMN` selects the first sort column (default `serial`). Accepted
 columns are `folder`, `car_id`, `serial`, `class`, `police`, `bonus`,
-`upgradable`, `price` and `name`. The class column sorts `B`, `A`, `AA`,
-`AAA`; names sort case-insensitively and numbers ascending. Class is always
-used as the second key and name as the third unless they are selected
-themselves, so sorting by `bonus`, for example, yields bonus cars grouped by
-class and name.
+`upgradable`, `price`, `manufacturer` and `name`. The class column sorts `B`,
+`A`, `AA`, `AAA`; names sort case-insensitively and numbers ascending. Class
+is always used as the second key and name as the third unless they are
+selected themselves, so sorting by `bonus`, for example, yields bonus cars
+grouped by class and name.
 
 ### Checking duplicates
 
